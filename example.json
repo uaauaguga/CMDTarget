@@ -1,0 +1,13 @@
+{"genome-set-name": "entero9", 
+  "genome-ids": "genomes/enterobacteria.genomes.9.txt", 
+  "query-ids": ["GCF_000005845.2","GCF_000210855.2","GCF_000742755.1"], 
+  "sRNA-ids": "sRNA-ids.txt",
+  "hfq": "hfq.200.100", 
+  "indir": "genomes", 
+  "hits": "sRNAs",
+  "outdir": "output/Enterobacteriaceae", 
+  "normalize": 1,
+  "marker": "rpoB",
+  "weights": {"pair zscore": 0.7, "hfq leader zscore": 0.3}, 
+  "denoise": {"srm": 10, "nvm": 10, "rescale": 0, "reroot": 1}, 
+}
