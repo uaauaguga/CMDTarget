@@ -35,7 +35,6 @@
 - You may start from GTDB genomes of the clade that contains these genomes. You may only keep refseq genome, or genome with completeness greater than certain cutoff. You get the assembly ids, starts with "GCF". Saving these assembly ids in a text file.
 
 ```{bash}
-mkdir -p genomes
 scripts/select-GTDB-genomes.py --clade f__Enterobacteriaceae --output genomes/Enterobacteriaceae.txt
 ```
 

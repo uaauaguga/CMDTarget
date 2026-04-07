@@ -11,11 +11,17 @@ from pyfaidx import Fasta
 def main():
     parser = argparse.ArgumentParser(description='sRNA homolog search')
     parser.add_argument('--query', '-q',required=True,help="input query sRNAs")
+    parser.add_argument('--genome-ids','-gi',help="target genome ids to consider")
     parser.add_argument('--genome-directory','-gd',required=True,help="target genomes")
     parser.add_argument('--output-directory','-od',required=True,help="output directory")
     parser.add_argument('--coverage','-c', type=float, default=0.8,help="alignment coverage required")
     parser.add_argument('--threads','-t',default=8,help="threads for mmseqs search")
     args = parser.parse_args()
+
+    tgenome_ids = set()
+    if args.genome_ids is not None:
+        tgenome_ids = set(open(args.genome_ids).read().strip().split("\n"))
+
     if not os.path.exists(args.output_directory):
         os.mkdir(args.output_directory)
     genome_ids = []
@@ -25,10 +31,13 @@ def main():
         fout = open(genome_fasta,"w")
         for fasta in os.listdir(args.genome_directory):
             if not (fasta.endswith(".fa") or fasta.endswith(".fna")):
-                continue
+                continue            
             path = os.path.join(args.genome_directory,fasta)
             genome_id = fasta[:fasta.rfind(".")]
+            if (args.genome_ids is not None) and (genome_id not in tgenome_ids):
+                continue
             genome_ids.append(genome_id)
+            print(path)
             with open(path) as f:
                 for line in f:
                     if line.startswith(">"):
@@ -56,7 +65,7 @@ def main():
     hdb = os.path.join(args.output_directory,"hits")
     if not os.path.exists(hdb+".dbtype"):
         logger.info("homolog search ...")
-        cmd = ["mmseqs", "search", "--search-type", "3", "-k", "9", "-s", "7.5", "--max-seqs", "5000", qdb, tdb, hdb, "tmp" ]
+        cmd = ["mmseqs", "search", "--search-type", "3", "-k", "7", "-s", "7.5", "--max-seqs", "5000", qdb, tdb, hdb, "tmp" ]
         subprocess.run(cmd)
     else:
         logger.info("hit db exists .")

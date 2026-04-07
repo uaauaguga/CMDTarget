@@ -4,23 +4,31 @@ import os
 #load all genome ids
 genome_ids = open(config["genome-ids"]).read().strip().split("\n")
 #get query genome ids
-query_ids = config["query-ids"] #query ids should present in genome-ids
+query_ids = config["query-ids"]
+for query_id in query_ids:
+    if query_id not in genome_ids:
+        #print(f"{query_id} not in genome set, insert it.")
+        genome_ids.append(query_id)    
 
+print("number of genome:",len(genome_ids))
 # define input and output directory
 indir = config["indir"]
 outdir = config["outdir"]
 
 sRNA_ids_considered0 = None
 if "sRNA-ids" in config:
-    # specify sRNA sequences to consider
-    # if no sRNA specified, considering all sRNAs in hits directory
-    sRNA_ids_considered0 = open(config["sRNA-ids"]).read().strip().split("\n")
+    if isinstance(config["sRNA-ids"],list):
+        sRNA_ids_considered0 = config["sRNA-ids"]
+    else:
+        sRNA_ids_considered0 = open(config["sRNA-ids"]).read().strip().split("\n")    
 
 genome_ids_by_srna = {}
 sRNA_ids_considered = []
 
 hits = config["hits"]
 for genome_id in genome_ids:
+    #if not os.path.exists(f"{indir}/{hits}/hits.groupped/{genome_id}"):
+    #    continue
     for fasta in os.listdir(f"{indir}/{hits}/hits.groupped/{genome_id}"):
         sRNA_id = fasta[:fasta.rfind(".")]
         if (sRNA_ids_considered0 is not None) and (sRNA_id not in sRNA_ids_considered0):
@@ -30,10 +38,9 @@ for genome_id in genome_ids:
         genome_ids_by_srna[sRNA_id].append(genome_id) 
 
 for sRNA_id in genome_ids_by_srna:
-    if len(genome_ids_by_srna[sRNA_id]) >= config.get("sRNA-min-homologs",3):
+    if len(genome_ids_by_srna[sRNA_id]) >= 4:
         sRNA_ids_considered.append(sRNA_id)  
 
-print(sRNA_ids_considered)
 
 if "hfq" in config:
     assert config["hfq"] != "wo.hfq"
@@ -56,7 +63,7 @@ if "normalize" in config:
     params_string.append(f"{k}-{v}")
 
 k = "marker"
-v = config.get(k,"rpoB")
+v = config.get(k,"16S-rRNA")
 marker = v
 params_string.append(f"{k}-{v}")
 
@@ -72,15 +79,18 @@ def get_output(wildcards):
     paths = []
     for genome_id in genome_ids:
         sRNA_ids = []
+        if not os.path.exists(f"{indir}/{hits}/hits.groupped/{genome_id}/"):
+            continue
         for fa in os.listdir(f"{indir}/{hits}/hits.groupped/{genome_id}/"):
             if fa[:-3] not in sRNA_ids_considered:
                 continue
             sRNA_ids.append(fa[:-3])
         paths += expand(outdir + f"/{genome_id}/energies/"+"{sRNA_id}.txt",sRNA_id = sRNA_ids)
-    paths += expand(outdir + "/{query_id}/homologs/{genome_set}/hits.dbtype",query_id=query_ids, genome_set = genome_set)
-    paths += [outdir + f"/proteins/{genome_set}/table.txt"]     
-    paths += expand(outdir + f"/comparative-analysis-denoised-ml/{hfqlabel}--{genome_set}/" + params_string + "/{sRNA_id}.txt", sRNA_id = sRNA_ids_considered)
-    paths += expand(outdir + f"/checkpoints/{hfqlabel}.{genome_set}/" + params_string + "/{sRNA_id}.txt",sRNA_id = sRNA_ids_considered)
+    if not config.get("only-energy",False):
+        paths += expand(outdir + "/{query_id}/homologs/{genome_set}/hits.dbtype",query_id=query_ids, genome_set = genome_set)
+        paths += [outdir + f"/proteins/{genome_set}/table.txt"]     
+        paths += expand(outdir + f"/comparative-analysis-denoised-ml/{hfqlabel}--{genome_set}/" + params_string + "/{sRNA_id}.txt", sRNA_id = sRNA_ids_considered)
+        paths += expand(outdir + f"/checkpoints/{hfqlabel}.{genome_set}/" + params_string + "/{sRNA_id}.txt",sRNA_id = sRNA_ids_considered)
     return paths
                 
 rule all:
@@ -102,7 +112,7 @@ rule prepare_protein:
         fasta = indir + "/fasta/{genome_id}.fa",
         bed = indir + "/CDS/{genome_id}.bed"
     output:
-        protein = outdir + "/{genome_id}/proteins.faa",
+        protein = indir + "/proteins/{genome_id}.faa",
     shell:
         """
         scripts/extract-protein-sequence-from-genome.py -i {input.bed} -g {input.fasta} -o {output.protein}
@@ -128,10 +138,10 @@ rule energy_scoring:
         energy = outdir + "/{genome_id}/energies/{sRNA_id}.txt"
     log:
         log = outdir + "/{genome_id}/energies/{sRNA_id}.log"
-    threads: 8
+    threads: 4
     shell:
         """
-        scripts/calculate-energy-score.py -rs "{input.sRNA}" -ts "{input.leaders}" -o "{output.energy}" -j 16 > {log.log} 2>&1
+        scripts/calculate-energy-score.py -rs "{input.sRNA}" -ts "{input.leaders}" -o "{output.energy}" -j 8 > {log.log} 2>&1
         """
 
 rule predict_dinucbg_params:
@@ -174,7 +184,7 @@ rule energy_normalization:
 rule combine_hfq_scores:
     input:
         energy = outdir + "/{genome_id}/energies.normalized/{sRNA_id}.txt",
-        hfq = indir + "/" + config["hfq"] + "/{genome_id}.txt" if "hfq" in config else config["sRNA-ids"]
+        hfq = indir + "/" + config["hfq"] + "/{genome_id}.txt" if "hfq" in config else config["genome-ids"]
     output:
         score = outdir + "/{genome_id}/combined." + hfqlabel + "/{sRNA_id}.txt"
     log:
@@ -189,7 +199,7 @@ rule combine_hfq_scores:
 
 rule combine_proteins:
     input:
-        proteins = expand(outdir + "/{genome_id}/proteins.faa",genome_id=genome_ids)
+        proteins = expand(indir + "/proteins/{genome_id}.faa",genome_id=genome_ids)
     output:
         proteins = outdir + "/proteins/{genome_set}/db.faa"
     params:
@@ -199,7 +209,8 @@ rule combine_proteins:
         print("combine proteins ...")
         fout = open(output.proteins,"w")
         for path in input.proteins:
-            genome_id = path.split("/")[-2]
+            genome_id = path.split("/")[-1]
+            genome_id = genome_id[:genome_id.rfind(".")]
             with open(path) as f:
                 for line in f:
                     if line.startswith(">"):
@@ -222,7 +233,7 @@ rule homolog_search:
     input:
         proteins = outdir + "/proteins/"+genome_set+"/db.faa",
         db = outdir + "/proteins/"+genome_set+"/db",
-        query = outdir + "/{query_id}/proteins.faa" 
+        query = indir + "/proteins/{query_id}.faa" 
     output:
         hits = outdir + "/{query_id}/homologs/"+genome_set+"/best.hit.txt",
         ahits = outdir + "/{query_id}/homologs/"+genome_set+"/hits.tsv",
@@ -263,7 +274,6 @@ def get_score_requirements(wildcards):
     sRNA_id = wildcards.sRNA_id
     for g in genome_ids_by_srna[wildcards.sRNA_id]:
         paths.append(outdir + f"/{g}/combined.{hfqlabel}/{sRNA_id}.txt")
-    #print(paths)
     return paths
 
 rule collate_scores_by_homolog:
@@ -314,7 +324,7 @@ rule extract_marker_sequences:
     input:
         genome = indir +"/fasta/{genome_id}.fa",
         CDS = indir + "/CDS/{genome_id}.bed",
-        protein = outdir + "/{genome_id}/proteins.faa",
+        protein = indir + "/proteins/{genome_id}.faa",
         hmm = f"models/{marker}.hmm"
     output:
         fasta = indir + f"/{marker}/" + "{genome_id}.fa"

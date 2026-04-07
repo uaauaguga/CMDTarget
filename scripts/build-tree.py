@@ -36,7 +36,8 @@ def main():
 
 
     logger.info("Build MSA ...")
-    cmd = ['mafft',"--maxiterate","1000","--localpair",RNA]
+    #cmd = ['mafft',"--maxiterate","1000","--localpair",RNA]
+    cmd = ['mafft',"--auto",RNA]
     RNA_MSA = os.path.join(args.output_directory,f"{args.marker}.afa")
     print(" ".join(cmd))
     fout = open(RNA_MSA,"w") 
