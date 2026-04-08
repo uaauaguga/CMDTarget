@@ -1,0 +1,5 @@
+genomes/
+output/
+.ipynb_checkpoints/
+.snakemake/
+scripts/__pycache__/

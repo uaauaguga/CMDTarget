@@ -12,7 +12,7 @@ import re
 def main():
     parser = argparse.ArgumentParser(description='Extract 16S rRNA')
     parser.add_argument('--fasta','-f', type=str , required=True, help="Input genome sequence")
-    parser.add_argument('--cm-model','-cm', type=str , default = "models/RF00177-SSU_rRNA_bacteria.cm",help="cm model of 16S rRNA")  
+    parser.add_argument('--cm-model','-cm', type=str , default = "models/16S-rRNA.cm",help="cm model of 16S rRNA")  
     parser.add_argument('--output','-o', type=str, required=True , help="Output rRNA sequences")
     args = parser.parse_args()
 
@@ -43,7 +43,6 @@ def main():
             break
     os.remove(tmp)
     if end - start > 1200:
-        print(start,end)
         logger.info("Extract 16S rRNA sequence ...")
         fasta = Fasta(args.fasta)
         sequence = fasta[seq_id][start:end]

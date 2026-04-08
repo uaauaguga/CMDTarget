@@ -14,7 +14,7 @@ def get_taxonomy(s, l = "c"):
 
 def main():
     parser = argparse.ArgumentParser(description='extract genomes')
-    parser.add_argument('--gtdb-metadata', '-gm', type=str, default="genomes/bac120_metadata_r207.rep.tsv")
+    parser.add_argument('--gtdb-metadata', '-gm', type=str, default="genomes/bac120_metadata_r207.rep.tsv.gz")
     parser.add_argument('--clade', '-c', type=str, required=True, help='clade to extract')
     parser.add_argument('--output', '-o', type=str, required=True, help='output assemblies')
     args = parser.parse_args()
@@ -30,9 +30,9 @@ def main():
     mask = mask & (table["checkm_completeness"] > 97)
     N = mask.sum()
     logger.info(f"{N} with completeness > 97.")
-    mask = mask & (table["ssu_count"] > 0)
-    N = mask.sum()
-    logger.info(f"{N} with 16S rRNA.")
+    #mask = mask & (table["ssu_count"] > 0)
+    #N = mask.sum()
+    #logger.info(f"{N} with 16S rRNA.")
     genome_ids = list(table[mask].index.map(lambda x:x[x.find("_")+1:]))
     logger.info(f"Saving selected genome ids to {args.output} .")
     with open(args.output,"w") as f:

@@ -47,6 +47,8 @@ def main():
     for asm_id in asm_id2url:
         logger.info(f"Processing {asm_id} ...")
         url = asm_id2url[asm_id]
+        if url.endswith("/"):
+            url = url[:-1]
         asm_id_long = url.split("/")[-1]         
         fna = os.path.join(args.fasta_directory,asm_id + ".fa")    
         if os.path.exists(fna):

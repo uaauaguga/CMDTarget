@@ -3,6 +3,7 @@ import argparse
 import logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] %(message)s')
 logger = logging.getLogger("pick hits")
+from tqdm import tqdm
 import subprocess
 import os
 from collections import defaultdict
@@ -29,7 +30,7 @@ def main():
     if not os.path.exists(genome_fasta):  
         logger.info("prepare genome sequences ...")
         fout = open(genome_fasta,"w")
-        for fasta in os.listdir(args.genome_directory):
+        for fasta in tqdm(os.listdir(args.genome_directory)):
             if not (fasta.endswith(".fa") or fasta.endswith(".fna")):
                 continue            
             path = os.path.join(args.genome_directory,fasta)
@@ -37,7 +38,6 @@ def main():
             if (args.genome_ids is not None) and (genome_id not in tgenome_ids):
                 continue
             genome_ids.append(genome_id)
-            print(path)
             with open(path) as f:
                 for line in f:
                     if line.startswith(">"):

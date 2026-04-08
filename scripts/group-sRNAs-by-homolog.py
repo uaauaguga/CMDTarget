@@ -2,6 +2,10 @@
 import argparse
 from collections import defaultdict
 import os
+import logging
+logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(name)s] %(message)s')
+logger = logging.getLogger("group sRNA homologs")
+
 
 def main():
     parser = argparse.ArgumentParser(description='split sequence')
@@ -9,6 +13,8 @@ def main():
     parser.add_argument('--output-directory', '-od', type=str, required=True, help='output directory')
     args = parser.parse_args()
     
+
+    logger.info("Load hits ...")
     sRNA_ids = {}
     skipped_pairs = set()
     lines = defaultdict(list)
@@ -29,12 +35,15 @@ def main():
             lines[sRNA_id].append(f">{hit_genome_id}")
             lines[sRNA_id].append(sequence) 
 
+    logger.info("Save hits ...")
     if not os.path.exists(args.output_directory):
         os.mkdir(args.output_directory)
     for sRNA_id in lines:
         fout = open(os.path.join(args.output_directory,sRNA_id + ".fa"),"w")
         print("\n".join(lines[sRNA_id]),file=fout)
         fout.close()
+
+    logger.info("All done .")
                     
 
 

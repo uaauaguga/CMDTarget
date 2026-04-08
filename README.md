@@ -8,38 +8,59 @@
   - CMDTarget include a module for Hfq binding prediction, and could optionally incorporate predicted Hfq binding scores for sRNA target prediction.
   - If you have multiple sRNAs, or a large genome set for comparative analysis, comparative genomics based sRNA target prediction can be computationally intensive. CMDTarget was built on snakemake, CMDTarget is friendly for HPC environments.
 
-
 ## Installation and dependency
 
 ### Dependecy
+
+- We recommand using conda to automatically resolve for dependency
+```{bash}
+conda env create -f environment.yml 
+#alternatively, the following command should work
+#conda install python snakemake ete3 intarna mafft cd-hit FastTree mmseqs2 hmmer infernal pyfaidx biopython tqdm ypytorch-cuda pytorch -c pytorch -c nvidia -c conda-forge -c bioconda
+```
+
 - IntaRNA: for interaction energy calculation
 - snakemake: for pipeline management
 - ete3: for tree operation
-- scipy: implement L-BFGS-B for optimize scores in tips and internal nodes
+- scipy: implement L-BFGS-B for optimizing scores in tips and internal nodes, also required by ete3
 - cd-hit: for sequence clustering
-- cmsearch: for 16S rRNA sequence detection
 - mafft: for MSA construction 
 - FastTree: for 16S rRNA tree building
 - mmseqs: for homolog search of sRNA and protein
+- pyfaidx: for genome sequence processing
+- hmmer: for detection of rpoB marker gene
+- infernal: cmsearch for 16S rRNA sequence detection, required is using 16S rRNAs as phylogenetic marker
 - pytorch: for Hfq binding score prediction
 
 
 ## Using CMDTarget
 
 
-### Prepare genomes for comparative analysis
+### Input of CMDTarget
 
-- First we have to set up data for comparative analysis. Several steps need some manual inspection.
+- The required input of CMDTarget include:
+  - Genome sequences
+  - Genome annotations in bed format
+  - Homologuous sRNA sequences
+- These inputs should be organized as follow:
+  - `indir`: input directory, should contains the following subdirectory
+    - `{indir}/fasta`: Genome sequence in fasta format, named as '{genome_id}.fa' 
+    - `{indir}/gff`: genome annotation in gff format, named as '{genome_id}.gff' 
+    - `{indir}/{hits}/hits.groupped`
+      - organized like '{indir}/{hits}/hits.groupped/{genome_id}/{sRNA_id}.fa', each file contains 1 sRNA sequence
+      - homologuous sRNA sequences share the same id
+- Easy to use script for preparing input data was provided, see below.
+
+### Prepare input for CMDTarget
 - You have multiple ways to curate your genome set for comparative analysis. Here we provide a simple strategy.
 - Suppose you a genome of interest (called query genome), you have to select several phylogenetically related genome for comparative analysis. 
 - You may start from GTDB genomes of the clade that contains these genomes. You may only keep refseq genome, or genome with completeness greater than certain cutoff. You get the assembly ids, starts with "GCF". Saving these assembly ids in a text file.
 
 ```{bash}
-scripts/select-GTDB-genomes.py --clade f__Enterobacteriaceae --output genomes/Enterobacteriaceae.txt
+python scripts/select-GTDB-genomes.py --clade g__Escherichia --output genomes/Escherichia.txt
 ```
 
 - If your query genome(s) does not present in this list, please manually add it
-
 
 - Then fetch sequences and annotations of these genomes. 
 
@@ -48,114 +69,129 @@ scripts/select-GTDB-genomes.py --clade f__Enterobacteriaceae --output genomes/En
 wget -P genomes https://ftp.ncbi.nlm.nih.gov/genomes/ASSEMBLY_REPORTS/assembly_summary_refseq.txt
 # fetch genomes of interests
 mkdir -p genomes/gff genomes/fasta
-scripts/fetch-refseq-genomes.py --genome-ids genomes/Enterobacteriaceae.txt --fasta-directory genomes/fasta --gff-directory genomes/gff --summary genomes/assembly_summary_refseq.txt
+scripts/fetch-refseq-genomes.py --genome-ids genomes/Escherichia.txt --fasta-directory genomes/fasta --gff-directory genomes/gff --summary genomes/assembly_summary_refseq.txt
+```
+
+- Reformat CDS coordinate from gff to bed
+```{bash}
+bash run/gff2bed.sh
 ```
 
 - Determine which genomes contain sRNA(s) for target prediction. 
 
-To do so, first put your sRNAs in fasta file. 
+To do so, first put your sRNAs in a fasta file. 
 ```{bash}
 #cat sRNAs.fa
-#each sRNA sequence should be named as "genome_id:sRNA_id"
->GCF_000005845.2:CpxQ
-TTTTCCTTGCCATAGACACCATCCCTGTCTTCCCCCACATGCTGTGGGGGTTTTTTTT
->GCF_000005845.2:FnrS
-GCAGGTGAATGCAACGTCAAGCGATGGGCGTTGCGCTCCATATTGTCTTACTTCCTTTTTTGAATTACTGCATAGCACAATTGATTCGTACGACGCCGACTTTGATGAGTCGGCTTTTTTTT
->GCF_000005845.2:GcvB
-ACTTCCTGAGCCGGAACGAAAAGTTTTATCGGAATGCGTGTTCTGGTGAACTTTTGGCTTACGGTTGTGATGTTGTGTTGTTGTGTTTGCAATTGGTCTGCGATTCAGACCATGGTAGCAAAGCTACCTTTTTTCACTTCCTGTACATTTACCCTGTCTGTCCATAGTGATTAATGTAGCACCGCCTAATTGCGGTGCTTTTTTTT
->GCF_000005845.2:MicA
-GAAAGACGCGCATTTGTTATCATCATCCCTGAATTCAGAGATGAAATTTTGGCCACTCACGAGTGGCCTTTTT
->GCF_000005845.2:OmrA
-CCCAGAGGTATTGATTGGTGAGATTATTCGGTACGCTCTTCGTACCCTGTCTCTTGCACCAACCTGCGCGGATGCGCAGGTTTTTTTT
->GCF_000005845.2:RybB
-GCCACTGCTTTTCTTTGATGTCCCCATTTTGTGGAGCCCATCAACCCCGCCATTTCGGTTCAAGGTTGATGGGTTTTTT
 >GCF_000005845.2:RyhB
 GCGATCAGGAAGACCCTCGCGGAGAACCTGAAAGCACGACATTGCTCACATTGCTTCCAGTATTACTTAGCCAGCCGGGTGCTGGCTTTTTTTTT
->GCF_000005845.2:SdsR
-GGCAAGGCAACTAAGCCTGCATTAATGCCAACTTTTAGCGCACGGCTCTCTCCCAAGAGCCATTTCCCTGGACCGAATACAGGAATCGTGTTCGGTCTCTTTTT
->GCF_000005845.2:SgrS
-GATGAAGCAAGGGGGTGCCCCATGCGTCAGTTTTATCAGCACTATTTTACCGCGACAGCGAAGTTGTGCTGGTTGCGTTGGTTAAGCGTCCCACAACGATTAACCATGCTTGAAGGACTGATGCAGTGGGATGACCGCAATTCTGAAAGTTGACTTGCCTGCATCATGTGTGACTGAGTATTGGTGTAAAATCACCCGCCAGCAGATTATACCTGCTGGTTTTTTTT
 >GCF_000005845.2:Spot42
 GTAGGGTACAGAGGTAAGATGTTCTATCTTTCAGACCTTTTACTTCACGTAATCGGATTTGGCTGAATATTTTAGCCGCCCCAGTCAGTAATGACTGGGGCGTTTTTTATT
 >GCF_000005845.2:CyaR
 GCTGAAAAACATAACCCATAAAATGCTAGCTGTACCAGGAACCACCTCCTTAGCCTGTGTAATCTCCCTTACACGGGCTTATTTTTT
->GCF_000005845.2:DsrA
-AACACATCAGATTTCCTGGTGTAACGAATTTTTTAAGTGCTTCTTGCTTAAGCAAGTTTCATCCCGACCCCCTCAGGGTCGGGATTTTTTT
->GCF_000005845.2:OmrB
-CCCAGAGGTATTGATAGGTGAAGTCAACTTCGGGTTGAGCACATGAATTACACCAGCCTGCGCAGATGCGCAGGTTTTTTTT
->GCF_000005845.2:OxyS
-GAAACGGAGCGGCACCTCTTTTAACCCTTGAAGTCACTGCCCGTTTCGAGAGTTTCTCAACTCGAATAACTAAAGCCAACGTGAACTTTTGCGGATCTCCAGGATCCGCTTTTTTTT
->GCF_000005845.2:RprA
-ACGGTTATAAATCAACATATTGATTTATAAGCATGGAAATCCCCTGAGTGAAACAACGAATTGCTGTGTGTAGTCTTTGCCCATCTCCCACGATGGGCTTTTTTTT
->GCF_000005845.2:RybA
-GTGCTATATCTGTATGTAATGCAATCATCCCTCAAGGATCGACGGGATTAGCAAGTCAGGAGGTCTTATGAATGAGTTCAAGAGGTGTATGCGCGTGTTTAGTCATTCTCCCTTTAAAGTACGGTTAATGCTGCTCTCTATGTTGTGCGATATGGTCAACAACAAACCGCAGCAAGATAAACCTTCCGATAAATAGCGGCGTCGCGGTACGCCGCTTCACTCCTGCTTTCATGCAGGCATAACGCGTTTTGGTCTGAAAAACCCCACTTTTTGTCGGATTTGCAATCCCCTTCGCAAAAGATTTGTTCGTCAGTAGTTGACCTGAACGGCGGCTCGCTCT
 ```
 
-```{bash}
-cat sRNAs.fa | grep '>' | cut -f 2 -d ':' > sRNA-ids.txt
-```
-
- 
-Perform homolog search, and extract hitted sequences:
+Perform the homolog search, and extract hit sequences:
 ```{bash}
 # perform homolog search, homolog sequence saved in genomes/sRNA-hits/hits.fa
-scripts/sRNA-homolog-search.py -q sRNAs.fa -gd genomes/fasta -od genomes/sRNA-hits --threads 12
+scripts/sRNA-homolog-search.py -q sRNAs.fa -gd genomes/fasta -od genomes/sRNA-hits --threads 12 -gi genomes/Escherichia.txt
 # group sRNAs by homolog
 scripts/group-sRNAs-by-homolog.py -i genomes/sRNA-hits/hits.fa -od genomes/sRNA-hits/hits
 # further group sRNA by genomes, make each file contain a single sequence
 scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/hits.groupped
 ```
 
-You may only consider genomes with at least a subset of query sRNAs:
-```{bash}
-cat  genomes/sRNA-hits/counts.by.genome.txt | awk '$2>=4{print}' > genomes/Enterobacteriaceae.ge4.txt 
-```
-
-- Extract 16S rRNA
-```{bash}
-run/extract-16S-rRNAs.sh
-scripts/combine-fasta.py  --input-directory genomes/SSU-rRNA --output genomes/SSU-rRNA.fa
-```
-
-- Select sequence based on 16 rRNA diversity
-```{bash}
-scripts/select-genome-by-SSU-divergence.py -i genomes/SSU-rRNA.fa -q GCF_000005845.2,GCF_000210855.2,GCF_000742755.1 -od genomes/SSU-96 --cutoff 0.96
-cut -f 1 -d ':'  genomes/SSU-96/scores.txt | head -n 10 > genomes/SSU-96-10-genomes.txt
-```
-
-
-### Predict Hfq binding scores (Optional)
-- We provide a model for Hfq binding prediction. 
-- If your species of interest belong to Gammaproteobacteria, incorporating such information could improve sRNA target prediction performance
-- If your species of interest does not harbor a homolog of Hfq protein, please skip this step as the prediction does not make sense.
-
-```{bash}
-scripts/leader-hfq-scoring.py --fasta genomes/fasta/$fasta --bed genomes/CDS/${genome_id}.bed --output $outdir/${genome_id}.txt --model models/hfq/${e}.pt --upstream $u --downstream $d -d cuda:1
-```
-
-
 ### Prepare config file
 
-- Here is a example config file in json format:
+- Here is an example config file in json format:
 
 ```{json}
-{ "genome-set-name": "SSU-96-10-genomes", # name of genome set, can be arbitrary
-  "genome-ids": "genomes/SSU-96-10-genomes.txt", # genome used for comparative analysis
-  "query-ids": ["GCF_000005845.2"], # genome for sRNA target prediction, multiple genome can be provided
-  "sRNA-ids": "sRNA-ids.txt", # sRNA ids to consider
-  "indir": "genomes", # input information
-  "outdir": "output/Enterobacteriaceae", # where to save the output
-  "normalize": 1, # whether renormalize the energy Z score, useful when using "pair zscore" mode
-  "hfq": "", # hfq scores to use, optional.
-  "weights": {"pair zscore": 1.0, "hfq leader zscore": 0.0}, # weight of energy score and hfq score
-  "denoise": {"srm": 10, "nvm": 10, "rescale": 0, "reroot": 1}, # parameter for comparative analysis
-  "tag": "202504" # a tag in output , arbitrary
-} 
+#example.json
+{ "indir": "genomes",
+  "outdir": "output/Enterobacteriaceae",
+  "hits": "sRNA-hits",
+  "genome-set-name": "Escherichia",
+  "genome-ids": "genomes/Escherichia.txt",
+  "query-ids": ["GCF_000005845.2"],
+  "sRNA-ids": "sRNA-ids.txt",
+  "marker": "rpoB",
+  "weights": {"pair zscore": 0.7, "hfq zscore": 0.3},
+  "denoise": {"srm": 10, "nvm": 10, "rescale": 0, "reroot": 1},
+  "steps": ["marker detection","single species scoring","comparative denoising"]}
 ```
+- `genome-ids`:
+  - A text file specify the genomes used in comparative analysis.
+  - One genome id per line
+  - For all genome_id with '{indir}/fasta/{genome_id}.fa', '{indir}/gff/{genome_id}.gff' present, only those specified in this file are used
+- `query-ids`:
+  - A list specify the query genome(s). The genome should present in `genome-ids`
+- `sRNA-ids`:
+  - A text file specify sRNAs to consider
+  - For all sRNAs with `{indir}/{hits}/hits.groupped/{genome_id}/{sRNA_id}.fa` present, only those present in this file are considered
+- `marker`:
+  - Phylogenetic marker for comparative analysis
+- `weights`: weights of energy scores and hfq scores
+- `denoise`: parameter for denoising
+- `steps`: steps to run. one or more steps can be specified. 
+  - "marker detection": detect phyloegentic marker
+  - "single species scoring": scoring binding using single species mode
+  - "comparative denoising": run comparative denoising. as this step depends on "marker detection" and "single species scoring", if only specify this step, the other two steps will be called
 
 ### Run the comparative sRNA target prediction pipeline
 
-- Once the data and config file is ready, the comparative analysis is fully automatic
+- Once the data and config file are ready, the comparative analysis is fully automatic
+
+1. We recommand first run the "marker detection" step to make sure the marker gene present in genomes that will be used for downstream analysis
+
+```{json}
+#example.json
+{ "indir": "genomes",
+  "outdir": "output/Enterobacteriaceae",
+  "hits": "sRNA-hits",
+  "genome-set-name": "Escherichia",
+  "genome-ids": "genomes/Escherichia.txt",
+  "query-ids": ["GCF_000005845.2"],
+  "sRNA-ids": "sRNA-ids.txt",
+  "marker": "rpoB",
+  "weights": {"pair zscore": 0.7, "hfq zscore": 0.3},
+  "denoise": {"srm": 10, "nvm": 10, "rescale": 0, "reroot": 1},
+  "steps": ["marker detection"]}
+```
+
+```{bash}
+snakemake --configfile example.json --jobs 16
+```
+- Marker genes were extracted to `{indir}/{marker}/{genome_id}.fa` 
+
+2. Define genomes set used for downstream analysis
+
+- You may keep all genomes with marker genes
+```{bash}
+ls genomes/rpoB/ | grep '.fa$' | sed 's/.fa$//' > genome-ids.txt
+```
+- When you have many genomes, up to 8 genomes withs <0.95 sequence identity is generally sufficient
+
+```{bash}
+# combine marker sequences
+scripts/combine-fasta.py -i genomes/rpoB -o genomes/Escherichia.rpoB.fa -gi  genomes/Escherichia.txt
+# get sequence identity to query marker, the result present in Escherichia.sim2query/scores.txt
+scripts/select-genome-by-divergence.py -i genomes/Escherichia.rpoB.fa --query-ids GCF_000005845.2 --cutoff 0.95 -od Escherichia.sim2query/
+```
+
+3. Refine your genome set by modify "genome-ids" in config file, run single genome scoring and comparative analysis
+
+```{json}
+{ "indir": "genomes",
+  "outdir": "output/Enterobacteriaceae",
+  "hits": "sRNA-hits",
+  "genome-set-name": "ent9", # an alias genome set used for comparative analysis
+  "genome-ids": "genome-ids.refined.txt", 
+  "query-ids": ["GCF_000005845.2"], # genome for sRNA target prediction, multiple genomes can be provided
+  "sRNA-ids": "sRNA-ids.txt",
+  "marker": "rpoB",
+  "weights": {"pair zscore": 0.7, "hfq zscore": 0.3},
+  "denoise": {"srm": 10, "nvm": 10, "rescale": 0, "reroot": 1},
+  "steps": ["single species scoring","comparative denoising"]}
+```
 
 ```{bash}
 snakemake --configfile example.json --jobs 16
@@ -163,7 +199,13 @@ snakemake --configfile example.json --jobs 16
 
 ### Interpretation of the results
 
-Raw binding energy
-- output/Enterobacteriaceae/GCF_000005845.2/energies
+- Raw hfq scores: `{indir}/hfq`
+- Raw binding energy: `{outdir}/{asm_id}/energies`
+- Single species combined scores by genome: `{outdir}/{asm_id}/combined.wt.hfq/{sRNA_id}.txt`
+- Single species combined scores by homolog: `{outdir}/scores-by-homolog-pair/wt.hfq--{genome-set-name}/{sRNA_id}.txt`
+- The phyloegentic tree: `{outdir}/phylogeny/{genome-set-name}/{marker}.nwk`
+
+### FAQs
+
 
 ## Citation

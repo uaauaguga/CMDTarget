@@ -15,7 +15,7 @@ np.random.seed(666)
 
 
 def prediction_intarna(sequence_1, sequence_2, seed=7):
-    cmd = ["/BioII/lulab_b/jinyunfan/miniforge3/envs/IntaRNA-env/bin/IntaRNA","-q",sequence_1,"-t",sequence_2,"--outMode","C","--outNumber","1","--tAcc","C","--seedBP", str(seed)]
+    cmd = ["IntaRNA","-q",sequence_1,"-t",sequence_2,"--outMode","C","--outNumber","1","--tAcc","C","--seedBP", str(seed)]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr = subprocess.DEVNULL)
     f = io.TextIOWrapper(proc.stdout, encoding="unicode_escape")
     _ = next(f)
@@ -93,7 +93,6 @@ def main():
         if not os.path.exists(profile_directory):
             os.mkdir(profile_directory)
         os.chdir(profile_directory)              
-        print(profile_directory)
         logger.info("Calculate accessibility with RNAplfold ...")
         #cmd = ["RNAplfold", "-W", "240", "-L", "160", "-u", "30", "--opening_energies"]        
         #proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,stdin=subprocess.PIPE,stderr=subprocess.DEVNULL)

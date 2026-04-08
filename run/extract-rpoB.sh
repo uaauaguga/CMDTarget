@@ -1,9 +1,7 @@
 #!/bin/bash
 indir=genomes
 mkdir -p $indir/rpoB/
-
-for genome_id in $(ls genomes/fasta | grep '.fa$');do
-  genome_id=${genome_id%.*}
+for genome_id in $(cat genomes/Enterobacteriaceae.ge2.txt | awk '{print $1}');do
   if [ -s genomes/CDS/${genome_id}.bed ];then
    echo "processing $genome_id ..."
    mkdir -p output/Enterobacteriaceae/$genome_id

@@ -85,7 +85,7 @@ def main():
     logger.info("load genome ...")
     fasta = Fasta(args.fasta)
     logger.info(f"load model weights from {args.model} ...")
-    state_dict = torch.load(args.model, map_location = args.device)
+    state_dict = torch.load(args.model, map_location = args.device, weights_only=True)
     if 'daOut.weight' in state_dict:
         n_domains = state_dict['daOut.weight'].shape[0]
     else:
@@ -168,7 +168,7 @@ def main():
         logit = np.log(score/(1-score))   
         max_scores[gene_id] = logit 
     fout = open(args.output,"w")
-    print("gene id","score","Z",sep="\t",file=fout)
+    print("gene id","score","zscore",sep="\t",file=fout)
     loc, scale = gumbel_r.fit(list(max_scores.values()))
     for gene_id in max_scores:
         logit = max_scores[gene_id]

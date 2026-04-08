@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(
 logger = logging.getLogger('select genomes')
 def main():
     parser = argparse.ArgumentParser(description='Select genomes for comparative analysis')
-    parser.add_argument('--input',  '-i', type=str, required=True, help='Input rRNAs')
+    parser.add_argument('--input',  '-i', type=str, required=True, help='Input sequences')
     parser.add_argument('--query-ids',  '-qs', type=str, required=True, help='Genome id of query genomes')
     parser.add_argument('--cutoff',  '-c', type=float, default=0.98, help='rRNA sequence identity cutoff')
     parser.add_argument('--output-directory','-od', type=str, required=True , help="Output results")

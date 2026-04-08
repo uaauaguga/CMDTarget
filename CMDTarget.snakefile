@@ -27,8 +27,6 @@ sRNA_ids_considered = []
 
 hits = config["hits"]
 for genome_id in genome_ids:
-    #if not os.path.exists(f"{indir}/{hits}/hits.groupped/{genome_id}"):
-    #    continue
     for fasta in os.listdir(f"{indir}/{hits}/hits.groupped/{genome_id}"):
         sRNA_id = fasta[:fasta.rfind(".")]
         if (sRNA_ids_considered0 is not None) and (sRNA_id not in sRNA_ids_considered0):
@@ -41,12 +39,8 @@ for sRNA_id in genome_ids_by_srna:
     if len(genome_ids_by_srna[sRNA_id]) >= 4:
         sRNA_ids_considered.append(sRNA_id)  
 
-
-if "hfq" in config:
-    assert config["hfq"] != "wo.hfq"
-hfqlabel = config.get("hfq","wo.hfq")
-
 weights = config["weights"]
+hfqlabel = ["wo.hfq","wt.hfq"][int(weights.get("hfq zscore",0) > 0)]
 
 params_string = []
 weights_string = []
@@ -63,7 +57,7 @@ if "normalize" in config:
     params_string.append(f"{k}-{v}")
 
 k = "marker"
-v = config.get(k,"16S-rRNA")
+v = config.get(k,"rpoB")
 marker = v
 params_string.append(f"{k}-{v}")
 
@@ -77,6 +71,7 @@ params_string = "_".join(params_string)
 genome_set = config["genome-set-name"]
 def get_output(wildcards):
     paths = []
+    #["single species scoring","marker detection","comparative denoising"]
     for genome_id in genome_ids:
         sRNA_ids = []
         if not os.path.exists(f"{indir}/{hits}/hits.groupped/{genome_id}/"):
@@ -85,8 +80,11 @@ def get_output(wildcards):
             if fa[:-3] not in sRNA_ids_considered:
                 continue
             sRNA_ids.append(fa[:-3])
-        paths += expand(outdir + f"/{genome_id}/energies/"+"{sRNA_id}.txt",sRNA_id = sRNA_ids)
-    if not config.get("only-energy",False):
+        if "single species scoring" in config["steps"]:
+            paths += expand(outdir + f"/{genome_id}/energies/"+"{sRNA_id}.txt",sRNA_id = sRNA_ids)
+        if "marker detection" in config["steps"]:
+            paths += expand(indir + f"/{marker}/" + "{genome_id}.done",genome_id=genome_id)
+    if "comparative denoising" in config["steps"]:
         paths += expand(outdir + "/{query_id}/homologs/{genome_set}/hits.dbtype",query_id=query_ids, genome_set = genome_set)
         paths += [outdir + f"/proteins/{genome_set}/table.txt"]     
         paths += expand(outdir + f"/comparative-analysis-denoised-ml/{hfqlabel}--{genome_set}/" + params_string + "/{sRNA_id}.txt", sRNA_id = sRNA_ids_considered)
@@ -113,9 +111,11 @@ rule prepare_protein:
         bed = indir + "/CDS/{genome_id}.bed"
     output:
         protein = indir + "/proteins/{genome_id}.faa",
+    log:
+        log = indir + "/proteins/{genome_id}.log"
     shell:
         """
-        scripts/extract-protein-sequence-from-genome.py -i {input.bed} -g {input.fasta} -o {output.protein}
+        scripts/extract-protein-sequence-from-genome.py -i {input.bed} -g {input.fasta} -o {output.protein} > {log.log} 2>&1
         """        
 
 rule extract_leader:
@@ -125,9 +125,11 @@ rule extract_leader:
     output:
         leader = outdir + "/{genome_id}/leader.fa",
         fai = indir +"/fasta/{genome_id}.fa.fai"
+    log:
+        log = outdir + "/{genome_id}/leader.log"
     shell:
         """
-        scripts/extract-leader-sequences.py -i {input.CDS} -g {input.fasta} -o {output.leader} 
+        scripts/extract-leader-sequences.py -i {input.CDS} -g {input.fasta} -o {output.leader}  > {log.log} 2>&1
         """ 
 
 rule energy_scoring:
@@ -157,17 +159,6 @@ rule predict_dinucbg_params:
         scripts/calculate-dinucleotide-background-params.py -rs "{input.sRNA}" -ts "{input.leaders}" -o "{output.gumbel}" > {log.log} 2>&1
         """
 
-'''
-rule energy_normalization:
-    input:
-        energy = outdir + "/{genome_id}/energies/{sRNA_id}.txt",
-    output:
-        energy = outdir + "/{genome_id}/energies.normalized/{sRNA_id}.txt"
-    shell:
-        """
-        scripts/normalize-energy.py -i "{input.energy}" -o "{output.energy}" 
-        """
-'''
 
 rule energy_normalization:
     input:
@@ -175,16 +166,36 @@ rule energy_normalization:
         params = outdir + "/{genome_id}/background.params/{sRNA_id}.txt"
     output:
         energy = outdir + "/{genome_id}/energies.normalized/{sRNA_id}.txt"
+    log:
+        log = outdir + "/{genome_id}/energies.normalized/{sRNA_id}.log"
     shell:
         """
-        scripts/normalize-energy.py -i "{input.energy}" -o "{output.energy}" -p "{input.params}"
+        scripts/normalize-energy.py -i "{input.energy}" -o "{output.energy}" -p "{input.params}" > {log.log} 2>&1
+        """
+
+rule hfq_binding_prediction:
+    input:
+        fasta = indir +"/fasta/{genome_id}.fa",
+        CDS = indir + "/CDS/{genome_id}.bed"
+    output:
+        hfq = indir + "/hfq/{genome_id}.txt" if hfqlabel != "wo.hfq" else config["genome-ids"] # do nothing if not use hfq
+    params:
+        upstream = 200,
+        downstream = 100,
+        device = 'cuda:0'
+    log:
+        log =  indir + "/hfq/{genome_id}.log" 
+    shell:
+        """
+        scripts/leader-hfq-scoring.py --fasta {input.fasta} --bed {input.CDS} --output {output.hfq} \
+        --upstream {params.upstream} --downstream {params.downstream} -d {params.device} > {log.log} 2>&1
         """
 
 
 rule combine_hfq_scores:
     input:
         energy = outdir + "/{genome_id}/energies.normalized/{sRNA_id}.txt",
-        hfq = indir + "/" + config["hfq"] + "/{genome_id}.txt" if "hfq" in config else config["genome-ids"]
+        hfq = indir + "/hfq/{genome_id}.txt" if hfqlabel != "wo.hfq" else config["genome-ids"] # when not use hfq, the label is arbitrary
     output:
         score = outdir + "/{genome_id}/combined." + hfqlabel + "/{sRNA_id}.txt"
     log:
@@ -311,13 +322,14 @@ rule extract_16S_rRNA_sequence:
     input:
         fasta = indir +"/fasta/{genome_id}.fa"
     output:
-        fasta = indir + "/16S-rRNA/" + "{genome_id}.fa"
+        flag = indir + "/16S-rRNA/" + "{genome_id}.done"
     log:
         log = indir + "/16S-rRNA/" + "{genome_id}.log"
+    params:
+        fasta = indir + "/16S-rRNA/" + "{genome_id}.fa"
     shell:
         """
-        export PATH=$PATH:/BioII/lulab_b/jinyunfan/miniforge3/envs/rna-analysis/bin
-        scripts/extract-16S-rRNAs.py --fasta {input.fasta} --output {output.fasta} > {log.log} 2>&1
+        scripts/extract-16S-rRNAs.py --fasta {input.fasta} --output {params.fasta} > {log.log} 2>&1 && touch {output.flag}
         """
 
 rule extract_marker_sequences:
@@ -327,18 +339,19 @@ rule extract_marker_sequences:
         protein = indir + "/proteins/{genome_id}.faa",
         hmm = f"models/{marker}.hmm"
     output:
+        flag = indir + f"/{marker}/" + "{genome_id}.done"
+    params:
         fasta = indir + f"/{marker}/" + "{genome_id}.fa"
     log:
         log = indir + f"/{marker}/" + "{genome_id}.log"   
     shell:
         """
-        export PATH=$PATH:/BioII/lulab_b/jinyunfan/miniforge3/envs/rna-analysis/bin
-        scripts/extract-protein-marker-nuc-sequences.py -g {input.genome} -p {input.protein} -b {input.CDS} --hmm {input.hmm} -o {output.fasta} > {log.log} 2>&1
+        scripts/extract-protein-marker-nuc-sequences.py -g {input.genome} -p {input.protein} -b {input.CDS} --hmm {input.hmm} -o {params.fasta} > {log.log} 2>&1 && touch {output.flag} 
         """
 
 rule build_tree:
     input:
-        fastas = expand(indir + f"/{marker}/" + "{genome_id}.fa", genome_id=genome_ids),
+        fastas = expand(indir + f"/{marker}/" + "{genome_id}.done", genome_id=genome_ids),
         genome_ids = config["genome-ids"]
     output:
         tree = outdir + f"/phylogeny/{genome_set}/{marker}.nwk",
@@ -351,7 +364,6 @@ rule build_tree:
         log =  outdir + f"/phylogeny/{genome_set}.log"
     shell:
         """
-        export PATH=$PATH:/BioII/lulab_b/jinyunfan/miniforge3/envs/rna-analysis/bin
         scripts/build-tree.py -id {params.indir} -od {params.outdir} -gi {input.genome_ids} -m {params.marker} > {log.log} 2>&1
         """
 
@@ -367,7 +379,6 @@ rule extract_representative_genomes:
         log = outdir + f"/phylogeny/{genome_set}/{marker}-representative-genome-ids.log"
     shell:
         """
-        export PATH=$PATH:/BioII/lulab_b/jinyunfan/miniforge3/envs/rna-analysis/bin
         esl-reformat --informat afa fasta {input.msa} > {output.all_fasta} 2> {log.log}
         cd-hit-est -i {output.all_fasta} -o {output.rep_fasta} -c 0.9999999 -r 0 -d 1000 > {log.log} 2>&1
         cat {output.rep_fasta} | grep '>' | sed 's/>//g' > {output.rep}
@@ -385,14 +396,10 @@ rule denosing:
     threads: 4
     params:
         srm = denoise.get("srm",10),
-        nvm = denoise.get("nvm",2),
-        normalize = {0:"",1:"--normalize"}[int(config.get("normalize",0))],
-        rescale = ["","--scale-tree"][denoise.get("rescale",0)],
-        reroot = ["","--reroot"][denoise.get("reroot",0)]
+        nvm = denoise.get("nvm",10),
     shell:
         """
-        export PATH=/BioII/lulab_b/jinyunfan/miniforge3/envs/rna-analysis/bin:$PATH
-        scripts/comparative-scoring-ml.py --input {input.scores} --output {output.scores} --tree  {input.tree} -sr {params.srm} -nv {params.nvm}  --jobs 10 -w {input.weights} --reroot {params.normalize} > {log.log} 2>&1
+        scripts/comparative-scoring-ml.py --input {input.scores} --output {output.scores} --tree  {input.tree} -sr {params.srm} -nv {params.nvm}  --jobs 10 -w {input.weights} --reroot --normalize > {log.log} 2>&1
         """
 
 
