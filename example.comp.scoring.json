@@ -4,8 +4,9 @@
   "genome-set-name": "Escherichia", 
   "genome-ids": "genomes/Escherichia.txt", 
   "query-ids": ["GCF_000005845.2"], 
-  "sRNA-ids": "sRNA-ids.txt",
-  "marker": "rpoB", 
+  "sRNA-ids": "sRNA-ids-test.txt",
+  "marker": "rpoB",
+  "device": "cuda:1",
   "weights": {"pair zscore": 0.7, "hfq zscore": 0.3},
   "denoise": {"srm": 10, "nvm": 10, "rescale": 0, "reroot": 1},
   "steps": ["single species scoring","comparative denoising"]}

@@ -53,6 +53,7 @@ conda env create -f environment.yml
 
 ### Prepare input for CMDTarget
 - You have multiple ways to curate your genome set for comparative analysis. Here we provide a simple strategy.
+- For testing, you can simply use 10 Escherichia genome sequences and annotations in `genomes.tar.gz`, including E.coli (GCF_000005845.2) 
 - Suppose you a genome of interest (called query genome), you have to select several phylogenetically related genome for comparative analysis. 
 - You may start from GTDB genomes of the clade that contains these genomes. You may only keep refseq genome, or genome with completeness greater than certain cutoff. You get the assembly ids, starts with "GCF". Saving these assembly ids in a text file.
 
@@ -118,6 +119,7 @@ scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/h
   "denoise": {"srm": 10, "nvm": 10, "rescale": 0, "reroot": 1},
   "steps": ["marker detection","single species scoring","comparative denoising"]}
 ```
+
 - `genome-ids`:
   - A text file specify the genomes used in comparative analysis.
   - One genome id per line
@@ -143,7 +145,7 @@ scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/h
 1. We recommand first run the "marker detection" step to make sure the marker gene present in genomes that will be used for downstream analysis
 
 ```{json}
-#example.json
+#example.marker.detection.json
 { "indir": "genomes",
   "outdir": "output/Enterobacteriaceae",
   "hits": "sRNA-hits",
@@ -158,7 +160,7 @@ scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/h
 ```
 
 ```{bash}
-snakemake --configfile example.json --jobs 16
+snakemake --configfile example.marker.detection.json --jobs 16 
 ```
 - Marker genes were extracted to `{indir}/{marker}/{genome_id}.fa` 
 
@@ -194,7 +196,8 @@ scripts/select-genome-by-divergence.py -i genomes/Escherichia.rpoB.fa --query-id
 ```
 
 ```{bash}
-snakemake --configfile example.json --jobs 16
+#--resources gpu=1 restrict jobs for runing Hfq score prediction
+snakemake --configfile example.marker.detection.json --jobs 16 --resources gpu=1
 ```
 
 ### Interpretation of the results
