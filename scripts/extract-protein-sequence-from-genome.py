@@ -36,7 +36,6 @@ def main():
                 print(sequence[p:p+70],file=fout)                
                 p += 70
     fout.close()
-    fout.close()
 
 if __name__ == "__main__":
     main()

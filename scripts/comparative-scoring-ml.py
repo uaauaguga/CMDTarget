@@ -138,12 +138,12 @@ def denoise(query_id, pair_scores):
         clade.add_features(score=result.x[i])
         if clade.is_root():
             root_score = clade.score
-        i += 1
         if clade.is_leaf():
             genome_id = clade.name
             target_id = genome_id2target_id[genome_id]        
             raw_score = pair_scores[target_id]
             records.append((query_id, target_id, round(raw_score,4), round(result.x[i],4)))
+        i += 1
     named_tree_with_score = used_tree.write(features=["score"],format=2)
     return records, named_tree_with_score[:-1] + "ROOT[&&NHX:score=" + f"{root_score}" + "];"
 
