@@ -41,7 +41,7 @@ def main():
     logger.info("Extract conservation of query genes ...")
     representative_genome_ids = open(args.representative_genome_ids).read().strip().split("\n")
     representative_genome_ids = set(representative_genome_ids)
-    print(representative_genome_ids)
+    #print(representative_genome_ids)
     with open(args.genome_scores) as f:
         _ = next(f)
         for line in f:
@@ -83,7 +83,7 @@ def main():
     #scores = scores[scores["tree"]!="."]
     logger.info("Extract scores of query genomes ...")
     denoised_scores = scores.set_index("query id")["denoised"].to_dict()
-    print(denoised_scores)
+    #print(denoised_scores)
     logger.info("Insert denoised score to final results ...")
     srna_name = args.srna_name
     weights = json.load(open(args.weights))
@@ -114,7 +114,7 @@ def main():
         table["homolog counts"] = table["protein id"].map(lambda x:len(genomes_with_query_proteins.get(x,set())))
         table["homolog scores"] = round(table["homolog counts"]/n_rep_genome_with_sRNA,4)
         table["score"] = table["score"].round(4)
-        print(table["protein id"])
+        #print(table["protein id"])
         table["denoised score"] = table["protein id"].map(lambda x:denoised_scores.get(x,np.nan)).round(4)        
         table["final score"] = table["denoised score"]
         if args.conservation_weight != 0:
@@ -126,7 +126,7 @@ def main():
         n_missed = table["denoised score"].isna().sum()
         N = table.shape[0]
         logger.info(f"Denoising impact {N - n_missed} in {N} genes.")
-        print(f"{args.working_directory}/{genome_id}/combined.final/{args.tag}/{srna_name}.txt") 
+        logger.info(f"Check results in {args.working_directory}/{genome_id}/combined.final/{args.tag}/{srna_name}.txt .") 
         table.to_csv(f"{args.working_directory}/{genome_id}/combined.final/{args.tag}/{srna_name}.txt",sep="\t",index=False)
     logger.info("All done.")         
     

@@ -61,7 +61,6 @@ v = config.get(k,"rpoB")
 marker = v
 params_string.append(f"{k}-{v}")
 
-denoise = {}
 denoise = config["denoise"]
 for k,v in denoise.items():    
     params_string.append(f"{k}-{v}")
@@ -145,7 +144,7 @@ rule energy_scoring:
     threads: 4
     shell:
         """
-        scripts/calculate-energy-score.py -rs "{input.sRNA}" -ts "{input.leaders}" -o "{output.energy}" -j 8 > {log.log} 2>&1
+        scripts/calculate-energy-score.py -rs "{input.sRNA}" -ts "{input.leaders}" -o "{output.energy}" -j {threads} > {log.log} 2>&1
         """
 
 rule predict_dinucbg_params:
@@ -387,7 +386,7 @@ rule extract_representative_genomes:
         cat {output.rep_fasta} | grep '>' | sed 's/>//g' > {output.rep}
         """
 
-rule denosing:
+rule denoising:
     input:
         scores =  outdir + f"/scores-by-homolog-pair/{hfqlabel}" + "--{genome_set}/{sRNA_id}.txt",
         tree = outdir + f"/phylogeny/{genome_set}/"+f"{marker}.nwk",
@@ -427,5 +426,5 @@ rule extract_score:
         """
         scripts/extract-final-score.py -hl {params.hfqlabel} --comparative-scores "{input.comparative_scores}" --genome-scores "{input.genome_scores}" -cw {params.conservation_weight} \
         --collapse {input.collapse} -w {input.weights} --working-directory {params.wd} \
-        --srna-name "{params.name}" --tag {params.tag}".ml" -rgi {input.rep} > "{log.log}" 2>&1 && touch "{output.checkpoint}"
+        --srna-name "{params.name}" --tag "{params.tag}.ml" -rgi {input.rep} > "{log.log}" 2>&1 && touch "{output.checkpoint}"
         """

@@ -10,9 +10,7 @@ import io
 import os
 import re
 from collections import defaultdict
-import pandas as pd
 from ete3 import Tree
-import subprocess
 from multiprocessing import Pool
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger('comparative scoring')
@@ -153,8 +151,8 @@ def main():
     parser.add_argument('--output','-o', type=str , required=True, help="where to save output")
     parser.add_argument('--select','-s', type=str , help="which query to run")
     parser.add_argument('--root-variance', '-rv', type=float, default = 1,   help='root variance')
-    parser.add_argument('--signal-rate',  '-sr', type=float, default = 0.08,   help='evolution rate')
-    parser.add_argument('--noise-variance',  '-nv', type=float, default = 0.004,   help='noise variance')
+    parser.add_argument('--signal-rate',  '-sr', type=float, default = 10,   help='evolution rate')
+    parser.add_argument('--noise-variance',  '-nv', type=float, default = 10,   help='noise variance')
     parser.add_argument('--tree','-t', type=str , required=True, help="the phylogenetic tree")
     parser.add_argument('--jobs','-j', type=int , default=16, help="number of process to run")
     parser.add_argument('--weights','-w',required=True, help="The weights for scoring")

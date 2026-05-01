@@ -10,7 +10,6 @@ from collections import defaultdict
 from multiprocessing import Pool
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger('target prediction')
-from itertools import product
 np.random.seed(666)
 
 
@@ -128,11 +127,7 @@ def main():
         targets = load_fasta(args.targets) 
         logger.info(f"run {args.method} with {args.jobs} workers ...")
         pool = Pool(args.jobs)
-        n_too_long = 0
         n_no_prediction = 0
-        n_total = 0
-        n_too_short = 0
-        n_few_reads = 0
         if args.method == "IntaRNA":
             prediction = prediction_intarna 
         else:

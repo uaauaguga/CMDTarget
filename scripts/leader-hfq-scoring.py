@@ -3,6 +3,8 @@ import os
 import torch
 from torch.functional import F
 import numpy as np
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from model import CNNClassifier
 import argparse
 import logging

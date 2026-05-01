@@ -8,7 +8,6 @@ from pyfaidx import Fasta
 import logging
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(name)s: %(message)s')
 logger = logging.getLogger('extract marker sequence')
-import re
 
 def main():
     parser = argparse.ArgumentParser(description='Extract marker sequence')

@@ -179,7 +179,7 @@ scripts/combine-fasta.py -i genomes/rpoB -o genomes/Escherichia.rpoB.fa -gi  gen
 scripts/select-genome-by-divergence.py -i genomes/Escherichia.rpoB.fa --query-ids GCF_000005845.2 --cutoff 0.95 -od Escherichia.sim2query/
 ```
 
-3. Refine your genome set by modify "genome-ids" in config file, run single genome scoring and comparative analysis
+3. Refine your genome set by modify "genome-ids" in config file `example.comp.scoring.json` for interaction prediction, run single genome scoring and comparative analysis
 
 ```{json}
 { "indir": "genomes",
@@ -197,7 +197,7 @@ scripts/select-genome-by-divergence.py -i genomes/Escherichia.rpoB.fa --query-id
 
 ```{bash}
 #--resources gpu=1 restrict jobs for runing Hfq score prediction
-snakemake --configfile example.marker.detection.json --jobs 16 --resources gpu=1
+snakemake --configfile example.comp.scoring.json --jobs 16 --resources gpu=1
 ```
 
 ### Interpretation of the results

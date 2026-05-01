@@ -54,7 +54,7 @@ def main():
     fout.write(header)
     for sRNA_id in entries_by_sRNA:
         sloc, sscale = sRNA_to_params[sRNA_id]
-        logger.info(f"{sRNA_id}: loc={sloc}, scale={scale}.")
+        logger.info(f"{sRNA_id}: loc={sloc}, scale={sscale}.")
         for fields in entries_by_sRNA[sRNA_id]:
             target_id = fields[2]            
             energy = float(fields[-1])

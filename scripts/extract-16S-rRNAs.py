@@ -23,6 +23,7 @@ def main():
     subprocess.run(cmd, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL)
 
     seq_id, start, end = "", -1, -1
+    strand = ""
     logger.info("Extract best hit ...")
     with open(tmp) as f:       
         for line in f:
@@ -41,6 +42,7 @@ def main():
             if end - start < 1200:
                 continue
             break
+    assert len(strand) > 0, "No 16 rRNA detected."
     os.remove(tmp)
     if end - start > 1200:
         logger.info("Extract 16S rRNA sequence ...")
