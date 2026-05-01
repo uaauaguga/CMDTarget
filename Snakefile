@@ -78,7 +78,7 @@ def get_output(wildcards):
         for fa in os.listdir(f"{indir}/{hits}/hits.groupped/{genome_id}/"):
             if fa[:-3] not in sRNA_ids_considered:
                 continue
-            sRNA_ids.append(fa[:-3])
+            sRNA_ids.append(fa[:fa.rfind(".")])
         if "single species scoring" in config["steps"]:
             paths += expand(outdir + f"/{genome_id}/energies/"+"{sRNA_id}.txt",sRNA_id = sRNA_ids)
         if "marker detection" in config["steps"]:
@@ -401,7 +401,7 @@ rule denoising:
         nvm = denoise.get("nvm",10),
     shell:
         """
-        scripts/comparative-scoring-ml.py --input {input.scores} --output {output.scores} --tree  {input.tree} -sr {params.srm} -nv {params.nvm}  --jobs 10 -w {input.weights} --reroot --normalize > {log.log} 2>&1
+        scripts/comparative-scoring-ml.py --input {input.scores} --output {output.scores} --tree  {input.tree} -sr {params.srm} -nv {params.nvm}  --jobs {threads} -w {input.weights} --reroot --normalize > {log.log} 2>&1
         """
 
 

@@ -4,9 +4,9 @@
 
 - CMDTarget (Comparative Modeling based Denosing for sRNA Target prediction) is a computational tool for sRNA target prediction and evolutionary analysis.
 - While conceptually similar to CopraRNA, CMDTarget has several distinct features:
-  - CMDTarget explicitly leverage information of evolutionary conservation, while unlike CopraRNA, it does not force homolog sRNA-mRNA pairs across different species to have the same interaction score by explicitly reconstruct interaction scores of both exant and ancestral sRNA-mRNA pairs.
-  - CMDTarget include a module for Hfq binding prediction, and could optionally incorporate predicted Hfq binding scores for sRNA target prediction.
-  - If you have multiple sRNAs, or a large genome set for comparative analysis, comparative genomics based sRNA target prediction can be computationally intensive. CMDTarget was built on snakemake, CMDTarget is friendly for HPC environments.
+  - CMDTarget explicitly leverage information of evolutionary conservation, while unlike CopraRNA, it does not force homolog sRNA-mRNA pairs across different species to have the same interaction score by explicitly reconstruct interaction scores of both extant and ancestral sRNA-mRNA pairs.
+  - CMDTarget includes a module for Hfq binding prediction, and could optionally incorporate predicted Hfq binding scores for sRNA target prediction.
+  - If you have multiple sRNAs, or a large genome set for comparative analysis, comparative genomics based sRNA target prediction can be computationally intensive. CMDTarget was built with snakemake, CMDTarget is friendly for HPC environments.
 
 ## Installation and dependency
 
@@ -40,8 +40,8 @@ conda env create -f environment.yml
 
 - The required input of CMDTarget include:
   - Genome sequences
-  - Genome annotations in bed format
-  - Homologuous sRNA sequences
+  - Genome annotations in gff format
+  - Homologous sRNA sequences
 - These inputs should be organized as follow:
   - `indir`: input directory, should contains the following subdirectory
     - `{indir}/fasta`: Genome sequence in fasta format, named as '{genome_id}.fa' 
@@ -49,12 +49,12 @@ conda env create -f environment.yml
     - `{indir}/{hits}/hits.groupped`
       - organized like '{indir}/{hits}/hits.groupped/{genome_id}/{sRNA_id}.fa', each file contains 1 sRNA sequence
       - homologuous sRNA sequences share the same id
-- Easy to use script for preparing input data was provided, see below.
+- An easy-to-use script for preparing input data was provided, see below.
 
 ### Prepare input for CMDTarget
 - You have multiple ways to curate your genome set for comparative analysis. Here we provide a simple strategy.
 - For testing, you can simply use 10 Escherichia genome sequences and annotations in `genomes.tar.gz`, including E.coli (GCF_000005845.2) 
-- Suppose you a genome of interest (called query genome), you have to select several phylogenetically related genome for comparative analysis. 
+- Suppose you have a genome of interest (called query genome), you have to select several phylogenetically related genome for comparative analysis. 
 - You may start from GTDB genomes of the clade that contains these genomes. You may only keep refseq genome, or genome with completeness greater than certain cutoff. You get the assembly ids, starts with "GCF". Saving these assembly ids in a text file.
 
 ```{bash}
@@ -134,7 +134,7 @@ scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/h
 - `weights`: weights of energy scores and hfq scores
 - `denoise`: parameter for denoising
 - `steps`: steps to run. one or more steps can be specified. 
-  - "marker detection": detect phyloegentic marker
+  - "marker detection": detect phylogenetic marker
   - "single species scoring": scoring binding using single species mode
   - "comparative denoising": run comparative denoising. as this step depends on "marker detection" and "single species scoring", if only specify this step, the other two steps will be called
 
@@ -143,9 +143,9 @@ scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/h
 - Once the data and config file are ready, the comparative analysis is fully automatic
 
 1. We recommand first run the "marker detection" step to make sure the marker gene present in genomes that will be used for downstream analysis
+- example.marker.detection.json
 
 ```{json}
-#example.marker.detection.json
 { "indir": "genomes",
   "outdir": "output/Enterobacteriaceae",
   "hits": "sRNA-hits",
@@ -206,7 +206,7 @@ snakemake --configfile example.comp.scoring.json --jobs 16 --resources gpu=1
 - Raw binding energy: `{outdir}/{asm_id}/energies`
 - Single species combined scores by genome: `{outdir}/{asm_id}/combined.wt.hfq/{sRNA_id}.txt`
 - Single species combined scores by homolog: `{outdir}/scores-by-homolog-pair/wt.hfq--{genome-set-name}/{sRNA_id}.txt`
-- The phyloegentic tree: `{outdir}/phylogeny/{genome-set-name}/{marker}.nwk`
+- The phylogenetic tree: `{outdir}/phylogeny/{genome-set-name}/{marker}.nwk`
 
 ### FAQs
 

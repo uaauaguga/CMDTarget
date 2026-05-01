@@ -47,7 +47,7 @@ def main():
         with open(path) as f:
             header = next(f)
             for line in f:
-                fields = line[:-1].split("\t")
+                fields = line.rstrip().split("\t")
                 protein_id = genome_id + ":" + fields[0]
                 fields[0] = protein_id
                 if protein_id not in homolog2query:
