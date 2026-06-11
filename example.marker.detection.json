@@ -2,7 +2,7 @@
   "outdir": "output/Enterobacteriaceae",
   "hits": "sRNA-hits",
   "genome-set-name": "Escherichia", 
-  "genome-ids": "genomes/Escherichia.txt", 
+  "genome-ids": "genomes/Escherichia.with.hits.txt",
   "query-ids": ["GCF_000005845.2"], 
   "sRNA-ids": "sRNA-ids-test.txt",
   "marker": "rpoB", 

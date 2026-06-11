@@ -101,6 +101,13 @@ scripts/group-sRNAs-by-homolog.py -i genomes/sRNA-hits/hits.fa -od genomes/sRNA-
 scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/hits.groupped
 ```
 
+- Extract genome ids with hits
+
+```{bash}
+cut -f 2 genomes/sRNA-hits/hits.tsv | cut -f 1 -d ':' | sort -u > genomes/Escherichia.with.hits.txt
+```
+
+
 ### Prepare config file
 
 - Here is an example config file in json format:
@@ -111,7 +118,7 @@ scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/h
   "outdir": "output/Enterobacteriaceae",
   "hits": "sRNA-hits",
   "genome-set-name": "Escherichia",
-  "genome-ids": "genomes/Escherichia.txt",
+  "genome-ids": "genomes/Escherichia.with.hits.txt",
   "query-ids": ["GCF_000005845.2"],
   "sRNA-ids": "sRNA-ids.txt",
   "marker": "rpoB",
@@ -150,7 +157,7 @@ scripts/split-sRNA-homolog.py -id genomes/sRNA-hits/hits -od genomes/sRNA-hits/h
   "outdir": "output/Enterobacteriaceae",
   "hits": "sRNA-hits",
   "genome-set-name": "Escherichia",
-  "genome-ids": "genomes/Escherichia.txt",
+  "genome-ids": "genomes/Escherichia.with.hits.txt",
   "query-ids": ["GCF_000005845.2"],
   "sRNA-ids": "sRNA-ids.txt",
   "marker": "rpoB",
@@ -174,9 +181,15 @@ ls genomes/rpoB/ | grep '.fa$' | sed 's/.fa$//' > genome-ids.txt
 
 ```{bash}
 # combine marker sequences
-scripts/combine-fasta.py -i genomes/rpoB -o genomes/Escherichia.rpoB.fa -gi  genomes/Escherichia.txt
+scripts/combine-fasta.py -i genomes/rpoB -o genomes/Escherichia.rpoB.fa -gi  genomes/Escherichia.with.hits.txt
+
 # get sequence identity to query marker, the result present in Escherichia.sim2query/scores.txt
-scripts/select-genome-by-divergence.py -i genomes/Escherichia.rpoB.fa --query-ids GCF_000005845.2 --cutoff 0.95 -od Escherichia.sim2query/
+# here we use 0.99 sequence identity cutoff as an example to reserve enough genomes
+# if you have diverse genomes, --cutoff 0.95 is a better default
+scripts/select-genome-by-divergence.py -i genomes/Escherichia.rpoB.fa --query-ids GCF_000005845.2 --cutoff 0.99 -od Escherichia.sim2query/
+
+# prepare refined genome ids
+cut -f 1 -d ':' Escherichia.sim2query/scores.txt > genomes/genome-ids.refined.txt
 ```
 
 3. Refine your genome set by modify "genome-ids" in config file `example.comp.scoring.json` for interaction prediction, run single genome scoring and comparative analysis
@@ -186,7 +199,7 @@ scripts/select-genome-by-divergence.py -i genomes/Escherichia.rpoB.fa --query-id
   "outdir": "output/Enterobacteriaceae",
   "hits": "sRNA-hits",
   "genome-set-name": "ent9", # an alias genome set used for comparative analysis
-  "genome-ids": "genome-ids.refined.txt", 
+  "genome-ids": "genomes/genome-ids.refined.txt", 
   "query-ids": ["GCF_000005845.2"], # genome for sRNA target prediction, multiple genomes can be provided
   "sRNA-ids": "sRNA-ids.txt",
   "marker": "rpoB",
