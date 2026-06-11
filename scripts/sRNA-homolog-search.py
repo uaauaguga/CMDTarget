@@ -65,7 +65,7 @@ def main():
     hdb = os.path.join(args.output_directory,"hits")
     if not os.path.exists(hdb+".dbtype"):
         logger.info("homolog search ...")
-        cmd = ["mmseqs", "search", "--search-type", "3", "-k", "7", "-s", "7.5", "--max-seqs", "5000", qdb, tdb, hdb, "tmp" ]
+        cmd = ["mmseqs", "search", "--search-type", "3", "-k", "7", "-s", "7.5", "--max-seqs", "5000", "--threads", str(args.threads), qdb, tdb, hdb, "tmp" ]
         subprocess.run(cmd)
     else:
         logger.info("hit db exists .")
